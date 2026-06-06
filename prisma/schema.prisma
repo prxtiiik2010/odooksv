@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  vendorId  String?
+  vendor    Vendor?  @relation(fields: [vendorId], references: [id])
+  createdAt DateTime @default(now())
+
+  rfqs       RFQ[]
+}
+
+enum Role {
+  admin
+  procurement_officer
+  vendor
+  approver
+}
+
+model Vendor {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  gst       String
+  category  String
+  createdAt DateTime @default(now())
+
+  users          User[]
+  rfqsAssigned   RFQVendor[]
+  quotations     Quotation[]
+  purchaseOrders PurchaseOrder[]
+}
+
+model RFQ {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  quantity    Int
+  status      RFQStatus @default(OPEN)
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  assignedVendors RFQVendor[]
+  quotations      Quotation[]
+  purchaseOrders  PurchaseOrder[]
+}
+
+enum RFQStatus {
+  OPEN
+  QUOTED
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+model RFQVendor {
+  id        String @id @default(cuid())
+  rfqId     String
+  vendorId  String
+  rfq       RFQ    @relation(fields: [rfqId], references: [id])
+  vendor    Vendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([rfqId, vendorId])
+}
+
+model Quotation {
+  id           String          @id @default(cuid())
+  rfqId        String
+  vendorId     String
+  price        Float
+  deliveryDays Int
+  notes        String          @default("")
+  status       QuotationStatus @default(SUBMITTED)
+  createdAt    DateTime        @default(now())
+
+  rfq             RFQ             @relation(fields: [rfqId], references: [id])
+  vendor          Vendor          @relation(fields: [vendorId], references: [id])
+  purchaseOrders  PurchaseOrder[]
+}
+
+enum QuotationStatus {
+  SUBMITTED
+  SHORTLISTED
+  APPROVED
+  REJECTED
+}
+
+model PurchaseOrder {
+  id           String   @id @default(cuid())
+  rfqId        String
+  quotationId  String
+  vendorId     String
+  poNumber     String   @unique
+  totalAmount  Float
+  status       String   @default("GENERATED")
+  createdAt    DateTime @default(now())
+
+  rfq        RFQ       @relation(fields: [rfqId], references: [id])
+  quotation  Quotation @relation(fields: [quotationId], references: [id])
+  vendor     Vendor    @relation(fields: [vendorId], references: [id])
+}
