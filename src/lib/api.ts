@@ -1,9 +1,25 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
 interface RequestOptions {
   method?: string;
   body?: unknown;
   accessToken?: string | null;
+}
+
+function resolveEndpoint(endpoint: string) {
+  if (endpoint.startsWith("http")) return endpoint;
+  if (endpoint.startsWith("/api/")) return endpoint;
+  return `/api${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+}
+
+function getStoredAccessToken() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return (
+      JSON.parse(localStorage.getItem("auth") || "{}")?.accessToken ?? null
+    );
+  } catch {
+    return null;
+  }
 }
 
 export async function api(endpoint: string, options: RequestOptions = {}) {
@@ -13,20 +29,13 @@ export async function api(endpoint: string, options: RequestOptions = {}) {
     "Content-Type": "application/json",
   };
 
-  // Resolve token from localStorage if not explicitly provided
-  const token =
-    accessToken ||
-    (typeof window !== "undefined"
-      ? localStorage.getItem("auth")
-        ? JSON.parse(localStorage.getItem("auth") || "{}").accessToken
-        : null
-      : null);
+  const token = accessToken || getStoredAccessToken();
 
   if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+    headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(resolveEndpoint(endpoint), {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,

@@ -1,15 +1,18 @@
-'use client';
+"use client";
 
-import { useEffect, useState, ReactNode } from 'react';
-import { useAuth } from './store';
-import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState, ReactNode } from "react";
+import { useAuth } from "./store";
+import { useRouter, usePathname } from "next/navigation";
 
 interface ProtectedRouteProps {
   children: ReactNode;
   allowedRoles?: string[];
 }
 
-export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  allowedRoles,
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -19,12 +22,12 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     if (isLoading) return;
 
     if (!user) {
-      router.push('/login');
+      router.push("/login").catch(() => {});
       return;
     }
 
     if (allowedRoles && !allowedRoles.includes(user.role)) {
-      router.push('/dashboard');
+      router.push("/dashboard").catch(() => {});
       return;
     }
 
@@ -33,12 +36,14 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
   if (isLoading || !isAuthorized) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <div className="loading-spinner" />
       </div>
     );
@@ -56,18 +61,20 @@ export function GuestRoute({ children }: { children: ReactNode }) {
     if (isLoading) return;
 
     if (user) {
-      router.push('/dashboard');
+      router.push("/dashboard").catch(() => {});
     }
   }, [user, isLoading, router, pathname]);
 
   if (isLoading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <div className="loading-spinner" />
       </div>
     );

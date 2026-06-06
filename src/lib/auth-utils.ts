@@ -1,24 +1,15 @@
-// Re-export everything from auth for backwards compatibility
+// Client-safe re-exports only — no Node.js fs dependencies
+// Do NOT re-export getAuthUser, verifyRefreshToken, generateRefreshToken, etc. from here
+// API routes should import those from auth-server.ts directly
+
 export {
-  generateToken,
   generateAccessToken,
+  generateToken,
   verifyAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-  rotateRefreshToken,
-  revokeAllUserTokens,
-  revokeRefreshToken,
-  generatePasswordResetToken,
-  verifyPasswordResetToken,
-  consumePasswordResetToken,
   getTokenFromHeader,
   authResponse,
   serverErrorResponse,
   successResponse,
-  getAuthUser,
-  requireAuth,
-  createRoleGuard,
-  auditLog,
   type AuthUser,
   type TokenPayload,
 } from "./auth";

@@ -3,14 +3,21 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/store";
 import { api } from "@/lib/api";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  TableContainer,
+} from "@/components/ui";
 
 interface Vendor {
-  _id: string;
-  name: string;
-  email: string;
-  gst: string;
-  category: string;
-  createdAt: string;
+  id?: string;
+  name?: string;
+  email?: string;
+  gst?: string;
+  category?: string;
+  createdAt?: string;
 }
 
 export default function VendorsPage() {
@@ -18,6 +25,7 @@ export default function VendorsPage() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -25,11 +33,28 @@ export default function VendorsPage() {
     category: "",
   });
   const [error, setError] = useState("");
+  const [listError, setListError] = useState("");
 
   useEffect(() => {
-    if (accessToken) {
-      api("/vendors", { accessToken }).then(setVendors).catch(console.error);
-    }
+    const loadVendors = async () => {
+      if (!accessToken) return;
+
+      setListLoading(true);
+      setListError("");
+
+      try {
+        const data = await api("/vendors", { accessToken });
+        setVendors(Array.isArray(data) ? data : []);
+      } catch (err) {
+        setListError(
+          err instanceof Error ? err.message : "Unable to load vendors",
+        );
+      } finally {
+        setListLoading(false);
+      }
+    };
+
+    loadVendors();
   }, [accessToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,56 +80,26 @@ export default function VendorsPage() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: "24px",
-              fontWeight: "600",
-              color: "var(--slate-800)",
-            }}
+      <PageHeader
+        title="Vendors"
+        description="Manage your approved supplier directory and sourcing categories."
+        action={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="btn btn-primary"
           >
-            Vendors
-          </h1>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "var(--slate-500)",
-              marginTop: "4px",
-            }}
-          >
-            Manage your vendor directory
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn btn-primary"
-        >
-          {showForm ? "Cancel" : "+ Add Vendor"}
-        </button>
-      </div>
+            {showForm ? "Cancel" : "+ Add Vendor"}
+          </button>
+        }
+      />
 
       {showForm && (
         <div className="card" style={{ marginBottom: "24px" }}>
-          <h2 className="card-header">Add New Vendor</h2>
+          <h2 className="card-header">Add new vendor</h2>
           {error && <div className="alert alert-error">{error}</div>}
-          <form
-            onSubmit={handleSubmit}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "16px",
-            }}
-          >
+          <form onSubmit={handleSubmit} className="form-grid">
             <div>
-              <label className="label">Company Name</label>
+              <label className="label">Company name</label>
               <input
                 type="text"
                 className="input"
@@ -126,7 +121,7 @@ export default function VendorsPage() {
               />
             </div>
             <div>
-              <label className="label">GST Number</label>
+              <label className="label">GST number</label>
               <input
                 type="text"
                 className="input"
@@ -147,13 +142,13 @@ export default function VendorsPage() {
                 required
               />
             </div>
-            <div style={{ gridColumn: "1 / -1", marginTop: "8px" }}>
+            <div className="form-full" style={{ marginTop: "8px" }}>
               <button
                 type="submit"
                 className="btn btn-primary"
                 disabled={loading}
               >
-                {loading ? "Adding..." : "Add Vendor"}
+                {loading ? "Adding…" : "Add Vendor"}
               </button>
             </div>
           </form>
@@ -161,45 +156,46 @@ export default function VendorsPage() {
       )}
 
       <div className="card">
-        {vendors.length === 0 ? (
-          <p style={{ color: "var(--slate-500)", fontSize: "14px" }}>
-            No vendors added yet
-          </p>
+        {listError ? (
+          <ErrorState title="Could not load vendors" message={listError} />
+        ) : listLoading ? (
+          <LoadingState message="Loading vendors…" />
+        ) : vendors.length === 0 ? (
+          <EmptyState
+            title="No vendors added yet"
+            description="Add your first vendor to start assigning RFQs and collecting quotations."
+          />
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Vendor</th>
-                <th>Email</th>
-                <th>GST</th>
-                <th>Category</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vendors.map((vendor) => (
-                <tr key={vendor._id}>
-                  <td style={{ fontWeight: "500" }}>{vendor.name}</td>
-                  <td>{vendor.email}</td>
-                  <td style={{ fontFamily: "monospace", fontSize: "13px" }}>
-                    {vendor.gst}
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        background: "var(--slate-100)",
-                        padding: "4px 10px",
-                        borderRadius: "4px",
-                        fontSize: "12px",
-                        color: "var(--slate-600)",
-                      }}
-                    >
-                      {vendor.category}
-                    </span>
-                  </td>
+          <TableContainer>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th>Email</th>
+                  <th>GST</th>
+                  <th>Category</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {vendors.map((vendor, index) => (
+                  <tr key={vendor?.id || vendor?.email || index}>
+                    <td style={{ fontWeight: 650, color: "var(--text)" }}>
+                      {vendor?.name || "Unnamed vendor"}
+                    </td>
+                    <td>{vendor?.email || "—"}</td>
+                    <td style={{ fontFamily: "monospace", fontSize: "13px" }}>
+                      {vendor?.gst || "—"}
+                    </td>
+                    <td>
+                      <span className="chip">
+                        {vendor?.category || "Uncategorized"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableContainer>
         )}
       </div>
     </div>

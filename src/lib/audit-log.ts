@@ -1,17 +1,7 @@
-import { prisma } from "./db";
-
-export type AuditAction =
-  | "LOGIN_SUCCESS"
-  | "LOGIN_FAILED"
-  | "LOGOUT"
-  | "REGISTER"
-  | "REFRESH_TOKEN"
-  | "PASSWORD_RESET_REQUESTED"
-  | "PASSWORD_RESET_COMPLETED"
-  | "TOKEN_REVOKED";
+﻿import { prisma } from "./db";
 
 export async function auditLog(
-  action: AuditAction,
+  action: string,
   params: {
     userId?: string;
     details?: string;
@@ -20,7 +10,7 @@ export async function auditLog(
 ) {
   const { userId, details = "", request } = params;
 
-  const entry = await prisma.auditLog.create({
+  return prisma.auditLog.create({
     data: {
       userId: userId ?? null,
       action,
@@ -29,6 +19,4 @@ export async function auditLog(
       userAgent: request?.headers.get("user-agent") ?? null,
     },
   });
-
-  return entry;
 }

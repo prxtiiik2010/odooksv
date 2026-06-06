@@ -24,7 +24,7 @@ export default function LoginPage() {
         body: { email, password },
       });
       login(data.user, data.accessToken, data.refreshToken);
-      router.push("/dashboard");
+      router.push("/dashboard").catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -33,133 +33,133 @@ export default function LoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-        backgroundColor: "#f8fafc",
-      }}
-    >
-      <div className="card" style={{ width: "100%", maxWidth: "400px" }}>
-        <div style={{ textAlign: "center", marginBottom: "32px" }}>
-          <h1
-            style={{
-              fontSize: "24px",
-              fontWeight: "700",
-              color: "var(--slate-800)",
-            }}
+    <div className="auth-page">
+      <section className="auth-panel">
+        <div className="auth-brand-mark">PF</div>
+        <div className="auth-copy">
+          <h1>Procurement without the noise.</h1>
+          <p>
+            Track RFQs, compare quotes, approve vendors, and generate purchase
+            orders from one focused workspace.
+          </p>
+        </div>
+        <p style={{ color: "var(--text-soft)", fontSize: "13px", margin: 0 }}>
+          ProcureFlow · Vendor workflow management
+        </p>
+      </section>
+
+      <section className="auth-card-wrap">
+        <div className="auth-card">
+          <div style={{ marginBottom: "26px" }}>
+            <h2>Welcome back</h2>
+            <p className="subtle">Sign in to continue to your workspace.</p>
+          </div>
+
+          {error && <div className="alert alert-error">{error}</div>}
+
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
           >
-            ProcureFlow
-          </h1>
+            <div>
+              <label className="label" htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                className="input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@company.com"
+                autoComplete="email"
+                required
+              />
+            </div>
+
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "16px",
+                  alignItems: "center",
+                }}
+              >
+                <label className="label" htmlFor="password">
+                  Password
+                </label>
+                <a
+                  href="/forgot-password"
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--text-muted)",
+                    marginBottom: "7px",
+                  }}
+                >
+                  Forgot password?
+                </a>
+              </div>
+              <input
+                id="password"
+                type="password"
+                className="input"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password123!"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+
           <p
             style={{
-              fontSize: "14px",
-              color: "var(--slate-500)",
-              marginTop: "8px",
+              textAlign: "center",
+              fontSize: "13px",
+              color: "var(--text-muted)",
+              marginTop: "22px",
             }}
           >
-            Sign in to continue
-          </p>
-        </div>
-
-        {error && (
-          <div className="alert alert-error" style={{ marginBottom: "16px" }}>
-            {error}
-          </div>
-        )}
-
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-        >
-          <div>
-            <label className="label">Email</label>
-            <input
-              type="email"
-              className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="label">Password</label>
-            <input
-              type="password"
-              className="input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
-
-          <div style={{ textAlign: "right" }}>
+            New here?{" "}
             <a
-              href="/forgot-password"
+              href="/register"
+              style={{ color: "var(--text)", fontWeight: 650 }}
+            >
+              Create an account
+            </a>
+          </p>
+
+          <div className="demo-box">
+            <div
               style={{
-                fontSize: "13px",
-                color: "var(--slate-500)",
+                fontWeight: 700,
+                color: "var(--text)",
+                marginBottom: "8px",
               }}
             >
-              Forgot password?
-            </a>
+              Demo access
+            </div>
+            <div>
+              Admin · <code>admin@company.com</code>
+            </div>
+            <div>
+              Procurement · <code>rajesh@company.com</code>
+            </div>
+            <div style={{ marginTop: "6px" }}>
+              Password · <code>Password123!</code>
+            </div>
           </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={loading}
-            style={{ marginTop: "8px" }}
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p
-          style={{
-            textAlign: "center",
-            fontSize: "13px",
-            color: "var(--slate-500)",
-            marginTop: "24px",
-          }}
-        >
-          Don&apos;t have an account?{" "}
-          <a
-            href="/register"
-            style={{ color: "var(--primary)", fontWeight: "500" }}
-          >
-            Create one
-          </a>
-        </p>
-
-        <div
-          style={{
-            marginTop: "24px",
-            padding: "16px",
-            backgroundColor: "#f1f5f9",
-            borderRadius: "8px",
-            fontSize: "12px",
-            color: "var(--slate-600)",
-          }}
-        >
-          <strong>Demo Accounts:</strong>
-          <ul style={{ marginTop: "8px", paddingLeft: "16px" }}>
-            <li>Procurement Officer: rajesh@company.com</li>
-            <li>Approver: priya@company.com</li>
-            <li>Vendor: amit@sharmasteel.com</li>
-            <li>Admin: admin@company.com</li>
-          </ul>
-          <p style={{ marginTop: "8px" }}>
-            Password: <code>Password123!</code>
-          </p>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

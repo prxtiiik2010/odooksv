@@ -2,12 +2,11 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import {
   generateAccessToken,
-  generateRefreshToken,
   successResponse,
   authResponse,
   serverErrorResponse,
-  auditLog,
 } from "@/lib/auth";
+import { generateRefreshToken, auditLog } from "@/lib/auth-server";
 import { checkRateLimit, getClientKey } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {

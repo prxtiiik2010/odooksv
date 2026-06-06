@@ -3,6 +3,8 @@
 import { useAuth } from "@/lib/store";
 import { useRouter, usePathname } from "next/navigation";
 import { useEffect, ReactNode } from "react";
+import Link from "next/link";
+import { Spinner } from "@/components/ui";
 
 const navItems = [
   {
@@ -23,7 +25,7 @@ const navItems = [
   },
   {
     href: "/po",
-    label: "Purchase Orders",
+    label: "Purchase orders",
     roles: ["admin", "procurement_officer", "approver", "vendor"],
   },
 ];
@@ -42,14 +44,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   if (isLoading || !accessToken) {
     return (
       <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        className="app-shell"
+        style={{ alignItems: "center", justifyContent: "center" }}
       >
-        <p style={{ color: "var(--slate-500)" }}>Loading...</p>
+        <Spinner label="Loading workspace…" />
       </div>
     );
   }
@@ -58,122 +56,56 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     item.roles.includes(user?.role || ""),
   );
 
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login").catch(() => {});
   };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      <aside
-        style={{
-          width: "240px",
-          background: "white",
-          borderRight: "1px solid var(--slate-200)",
-          padding: "24px 16px",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        <div style={{ marginBottom: "32px" }}>
-          <h1
-            style={{
-              fontSize: "20px",
-              fontWeight: "700",
-              color: "var(--slate-800)",
-            }}
-          >
-            ProcureFlow
-          </h1>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="sidebar-logo">PF</div>
+          <div>
+            <div className="sidebar-brand-title">ProcureFlow</div>
+            <div className="sidebar-brand-subtitle">Procurement OS</div>
+          </div>
         </div>
 
-        <nav style={{ flex: 1 }}>
-          <ul
-            style={{
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: "4px",
-            }}
-          >
-            {filteredNav.map((item) => (
-              <li key={item.href}>
-                <a
-                  href={item.href}
-                  style={{
-                    display: "block",
-                    padding: "10px 12px",
-                    borderRadius: "6px",
-                    fontSize: "14px",
-                    fontWeight: pathname === item.href ? "600" : "400",
-                    color:
-                      pathname === item.href
-                        ? "var(--accent)"
-                        : "var(--slate-600)",
-                    background:
-                      pathname === item.href
-                        ? "var(--slate-50)"
-                        : "transparent",
-                    textDecoration: "none",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
+        <nav className="sidebar-nav" aria-label="Primary navigation">
+          <ul>
+            {filteredNav.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`nav-link ${active ? "nav-link-active" : ""}`}
+                  >
+                    <span>{item.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
-        <div
-          style={{
-            borderTop: "1px solid var(--slate-200)",
-            paddingTop: "16px",
-            marginTop: "16px",
-          }}
-        >
-          <div style={{ marginBottom: "12px" }}>
-            <p
-              style={{
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "var(--slate-800)",
-              }}
-            >
-              {user?.name}
-            </p>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--slate-500)",
-                textTransform: "capitalize",
-              }}
-            >
-              {user?.role?.replace("_", " ")}
-            </p>
-          </div>
+        <div className="sidebar-user">
+          <p className="sidebar-user-name">{user?.name || "Workspace user"}</p>
+          <p className="sidebar-user-role">
+            {user?.role?.replace("_", " ") || "authenticated"}
+          </p>
           <button
             onClick={handleLogout}
             className="btn btn-secondary"
-            style={{ width: "100%", fontSize: "13px" }}
+            style={{ width: "100%" }}
           >
             Sign out
           </button>
         </div>
       </aside>
 
-      <main
-        style={{
-          flex: 1,
-          padding: "32px",
-          background: "var(--slate-50)",
-          overflowY: "auto",
-        }}
-      >
-        {children}
-      </main>
+      <main className="app-main">{children}</main>
     </div>
   );
 }

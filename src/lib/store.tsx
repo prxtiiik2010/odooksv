@@ -9,7 +9,6 @@ import {
   ReactNode,
 } from "react";
 import { api } from "./api";
-import { verifyAccessToken } from "./auth-utils";
 
 export interface User {
   id: string;
@@ -61,8 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         stored,
       ) as StoredAuth;
 
-      const payload = verifyAccessToken(accessToken);
-      if (!payload) {
+      if (!user || !accessToken || !refreshToken) {
         localStorage.removeItem("auth");
         setUser(null);
         setAccessToken(null);
@@ -71,13 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setUser({
-        id: payload.userId,
-        name: payload.name,
-        email: payload.email,
-        role: payload.role as User["role"],
-        vendorId: payload.vendorId ?? null,
-      });
+      setUser(user);
       setAccessToken(accessToken);
       setRefreshToken(refreshToken);
       setIsLoading(false);

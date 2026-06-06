@@ -1,11 +1,6 @@
 import { prisma } from "@/lib/db";
-import {
-  generatePasswordResetToken,
-  successResponse,
-  authResponse,
-  serverErrorResponse,
-  auditLog,
-} from "@/lib/auth";
+import { successResponse, authResponse, serverErrorResponse } from "@/lib/auth";
+import { generatePasswordResetToken, auditLog } from "@/lib/auth-server";
 import { checkRateLimit, getClientKey } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
@@ -19,10 +14,7 @@ export async function POST(request: Request) {
     const clientKey = getClientKey(request, email.toLowerCase());
     const rateLimit = await checkRateLimit(clientKey, "passwordReset");
     if (!rateLimit.allowed) {
-      return authResponse(
-        "Too many reset attempts. Try again later.",
-        429,
-      );
+      return authResponse("Too many reset attempts. Try again later.", 429);
     }
 
     const user = await prisma.user.findUnique({ where: { email } });

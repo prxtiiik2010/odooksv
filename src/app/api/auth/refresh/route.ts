@@ -1,11 +1,6 @@
 import { prisma } from "@/lib/db";
-import {
-  rotateRefreshToken,
-  generateAccessToken,
-  successResponse,
-  authResponse,
-  auditLog,
-} from "@/lib/auth";
+import { generateAccessToken, successResponse, authResponse } from "@/lib/auth";
+import { rotateRefreshToken, auditLog } from "@/lib/auth-server";
 
 export async function POST(request: Request) {
   try {

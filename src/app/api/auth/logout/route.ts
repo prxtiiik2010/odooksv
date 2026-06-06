@@ -1,11 +1,5 @@
-import {
-  getTokenFromHeader,
-  successResponse,
-  authResponse,
-  revokeAllUserTokens,
-  getAuthUser,
-  auditLog,
-} from "@/lib/auth";
+import { getTokenFromHeader, successResponse, authResponse } from "@/lib/auth";
+import { revokeAllUserTokens, getAuthUser, auditLog } from "@/lib/auth-server";
 
 export async function POST(request: Request) {
   const token = getTokenFromHeader(request);

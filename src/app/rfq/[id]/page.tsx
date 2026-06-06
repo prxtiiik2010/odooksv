@@ -4,25 +4,35 @@ import { useEffect, useState, use } from "react";
 import { useAuth } from "@/lib/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  TableContainer,
+  formatCurrency,
+} from "@/components/ui";
 
 interface Quotation {
-  _id: string;
-  vendorId: { _id: string; name: string; email: string };
-  price: number;
-  deliveryDays: number;
-  notes: string;
-  status: string;
+  _id?: string;
+  vendorId?: { _id?: string; name?: string; email?: string };
+  price?: number;
+  deliveryDays?: number;
+  notes?: string;
+  status?: string;
 }
 
 interface RFQDetail {
-  _id: string;
-  title: string;
-  description: string;
-  quantity: number;
-  status: string;
-  assignedVendors: { _id: string; name: string }[];
-  createdBy: { name: string };
+  _id?: string;
+  title?: string;
+  description?: string;
+  quantity?: number;
+  status?: string;
+  assignedVendors?: { vendor?: { id?: string; name?: string } }[];
+  createdBy?: { name?: string };
 }
+
+type ScoredQuotation = Quotation & { score: number };
 
 export default function RFQDetailPage({
   params,
@@ -32,25 +42,39 @@ export default function RFQDetailPage({
   const { id } = use(params);
   const { accessToken, user } = useAuth();
   const [data, setData] = useState<{
-    rfq: RFQDetail;
-    quotations: Quotation[];
+    rfq?: RFQDetail;
+    quotations?: Quotation[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (accessToken && id) {
-      api(`/rfq/${id}`, { accessToken })
-        .then(setData)
-        .catch(console.error)
-        .finally(() => setLoading(false));
-    }
+    const loadDetail = async () => {
+      if (!accessToken || !id) return;
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const detail = await api(`/rfq/${id}`, { accessToken });
+        setData(detail ?? null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unable to load RFQ");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDetail();
   }, [accessToken, id]);
 
   const handleApprove = async (
-    quotationId: string,
-    status: "APPROVED" | "REJECTED",
+    quotationId?: string,
+    status?: "APPROVED" | "REJECTED",
   ) => {
+    if (!quotationId || !status) return;
     if (
       !confirm(
         `Are you sure you want to ${status.toLowerCase()} this quotation?`,
@@ -58,6 +82,7 @@ export default function RFQDetailPage({
     )
       return;
 
+    setActionError("");
     setActionLoading(quotationId);
     try {
       await api(`/quotations/${quotationId}`, {
@@ -66,94 +91,56 @@ export default function RFQDetailPage({
         accessToken,
       });
       const updated = await api(`/rfq/${id}`, { accessToken });
-      setData(updated);
+      setData(updated ?? null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Action failed");
+      setActionError(err instanceof Error ? err.message : "Action failed");
     } finally {
       setActionLoading(null);
     }
   };
 
-  if (loading) return <p style={{ color: "var(--slate-500)" }}>Loading...</p>;
-  if (!data) return <p style={{ color: "var(--slate-500)" }}>RFQ not found</p>;
+  if (loading) return <LoadingState message="Loading RFQ details…" />;
+  if (error) return <ErrorState title="Could not load RFQ" message={error} />;
+  if (!data?.rfq) {
+    return (
+      <EmptyState
+        title="RFQ not found"
+        description="This RFQ may have been removed or is unavailable."
+      />
+    );
+  }
 
-  const { rfq, quotations } = data;
+  const rfq = data.rfq;
+  const quotations = data.quotations ?? [];
   const submittedQuotations = quotations.filter(
-    (q) => q.status === "SUBMITTED",
+    (q) =>
+      q?.status === "SUBMITTED" &&
+      (q?.price ?? 0) > 0 &&
+      (q?.deliveryDays ?? 0) > 0,
   );
 
-  const lowestPrice = Math.min(...submittedQuotations.map((q) => q.price));
-  const fastestDelivery = Math.min(
-    ...submittedQuotations.map((q) => q.deliveryDays),
-  );
+  const lowestPrice = submittedQuotations.length
+    ? Math.min(...submittedQuotations.map((q) => q.price ?? 0))
+    : 0;
+  const fastestDelivery = submittedQuotations.length
+    ? Math.min(...submittedQuotations.map((q) => q.deliveryDays ?? 0))
+    : 0;
 
-  const priceWeight = 0.6;
-  const deliveryWeight = 0.4;
-
-  const scoredQuotations = submittedQuotations.map((q) => {
-    const priceScore = (lowestPrice / q.price) * 100;
-    const deliveryScore = (fastestDelivery / q.deliveryDays) * 100;
-    const totalScore =
-      priceWeight * priceScore + deliveryWeight * deliveryScore;
+  const scoredQuotations: ScoredQuotation[] = submittedQuotations.map((q) => {
+    const priceScore =
+      lowestPrice && q?.price ? (lowestPrice / q.price) * 100 : 0;
+    const deliveryScore =
+      fastestDelivery && q?.deliveryDays
+        ? (fastestDelivery / q.deliveryDays) * 100
+        : 0;
+    const totalScore = 0.6 * priceScore + 0.4 * deliveryScore;
     return { ...q, score: Math.round(totalScore) };
   });
 
   const recommended = scoredQuotations.reduce(
     (best, q) => (!best || q.score > best.score ? q : best),
-    null as (Quotation & { score: number }) | null,
+    null as ScoredQuotation | null,
   );
-
-  if (!submittedQuotations.length && rfq.status === "OPEN") {
-    return (
-      <div>
-        <Link
-          href="/rfq"
-          style={{
-            color: "var(--accent)",
-            fontSize: "13px",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          ← Back to RFQs
-        </Link>
-        <div className="card" style={{ marginTop: "16px" }}>
-          <h1
-            style={{
-              fontSize: "20px",
-              fontWeight: "600",
-              color: "var(--slate-800)",
-            }}
-          >
-            {rfq.title}
-          </h1>
-          <p
-            style={{
-              color: "var(--slate-500)",
-              fontSize: "14px",
-              marginTop: "8px",
-            }}
-          >
-            {rfq.description}
-          </p>
-          <div
-            style={{
-              marginTop: "24px",
-              padding: "24px",
-              background: "var(--slate-50)",
-              borderRadius: "8px",
-              textAlign: "center",
-            }}
-          >
-            <p style={{ color: "var(--slate-500)" }}>
-              Waiting for vendors to submit quotes
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -162,9 +149,8 @@ export default function RFQDetailPage({
         style={{
           color: "var(--accent)",
           fontSize: "13px",
+          fontWeight: 650,
           display: "inline-flex",
-          alignItems: "center",
-          gap: "4px",
           marginBottom: "16px",
         }}
       >
@@ -172,107 +158,30 @@ export default function RFQDetailPage({
       </Link>
 
       <div className="card" style={{ marginBottom: "24px" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
-          <div>
-            <h1
-              style={{
-                fontSize: "20px",
-                fontWeight: "600",
-                color: "var(--slate-800)",
-              }}
+        <PageHeader
+          title={rfq?.title || "Untitled RFQ"}
+          description={rfq?.description || "No description provided."}
+          action={
+            <span
+              className={`badge badge-${(rfq?.status || "OPEN").toLowerCase()}`}
             >
-              {rfq.title}
-            </h1>
-            <p
-              style={{
-                color: "var(--slate-500)",
-                fontSize: "14px",
-                marginTop: "8px",
-              }}
-            >
-              {rfq.description}
-            </p>
-          </div>
-          <span className={`badge badge-${rfq.status.toLowerCase()}`}>
-            {rfq.status}
-          </span>
-        </div>
+              {rfq?.status || "OPEN"}
+            </span>
+          }
+        />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: "16px",
-            marginTop: "24px",
-            paddingTop: "24px",
-            borderTop: "1px solid var(--slate-100)",
-          }}
-        >
+        <div className="metric-grid">
           <div>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--slate-500)",
-                marginBottom: "4px",
-              }}
-            >
-              Quantity
-            </p>
-            <p
-              style={{
-                fontSize: "18px",
-                fontWeight: "600",
-                color: "var(--slate-800)",
-              }}
-            >
-              {rfq.quantity}
-            </p>
+            <p className="metric-label">Quantity</p>
+            <p className="metric-value">{rfq?.quantity ?? "—"}</p>
           </div>
           <div>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--slate-500)",
-                marginBottom: "4px",
-              }}
-            >
-              Created By
-            </p>
-            <p
-              style={{
-                fontSize: "18px",
-                fontWeight: "600",
-                color: "var(--slate-800)",
-              }}
-            >
-              {rfq.createdBy?.name}
-            </p>
+            <p className="metric-label">Created by</p>
+            <p className="metric-value">{rfq?.createdBy?.name || "Unknown"}</p>
           </div>
           <div>
-            <p
-              style={{
-                fontSize: "12px",
-                color: "var(--slate-500)",
-                marginBottom: "4px",
-              }}
-            >
-              Vendors
-            </p>
-            <p
-              style={{
-                fontSize: "18px",
-                fontWeight: "600",
-                color: "var(--slate-800)",
-              }}
-            >
-              {rfq.assignedVendors?.length || 0}
-            </p>
+            <p className="metric-label">Vendors</p>
+            <p className="metric-value">{rfq?.assignedVendors?.length ?? 0}</p>
           </div>
         </div>
       </div>
@@ -282,197 +191,166 @@ export default function RFQDetailPage({
           className="card"
           style={{
             marginBottom: "24px",
-            background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
-            borderColor: "#86efac",
+            borderColor: "#bbf7d0",
+            background: "linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                background: "var(--success)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <span style={{ color: "white", fontSize: "20px" }}>✓</span>
-            </div>
-            <div>
-              <p
-                style={{
-                  fontSize: "12px",
-                  color: "var(--success)",
-                  fontWeight: "600",
-                  marginBottom: "2px",
-                }}
-              >
-                Smart Recommendation
-              </p>
-              <p
-                style={{
-                  fontSize: "16px",
-                  fontWeight: "600",
-                  color: "var(--slate-800)",
-                }}
-              >
-                {recommended.vendorId?.name || "Unknown Vendor"}
-              </p>
-              <p style={{ fontSize: "13px", color: "var(--slate-500)" }}>
-                Best score: {recommended.score}/100 — Lowest price + fastest
-                delivery
-              </p>
-            </div>
-          </div>
+          <p className="stat-label" style={{ color: "var(--success)" }}>
+            Smart recommendation
+          </p>
+          <h2 className="card-header" style={{ marginBottom: 4 }}>
+            {recommended?.vendorId?.name || "Unknown vendor"}
+          </h2>
+          <p className="page-description" style={{ margin: 0 }}>
+            Best score: {recommended.score}/100 — balanced on price and delivery
+            speed.
+          </p>
         </div>
       )}
 
+      {actionError && <div className="alert alert-error">{actionError}</div>}
+
       <div className="card">
-        <h2 className="card-header">Quotation Comparison</h2>
+        <h2 className="card-header">Quotation comparison</h2>
         {submittedQuotations.length === 0 ? (
-          <p style={{ color: "var(--slate-500)", fontSize: "14px" }}>
-            No quotations submitted yet
-          </p>
+          <EmptyState
+            title={
+              rfq?.status === "OPEN"
+                ? "Waiting for vendor quotes"
+                : "No comparable quotations"
+            }
+            description="Once vendors submit valid price and delivery details, comparison scores will appear here."
+          />
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Vendor</th>
-                <th>Price</th>
-                <th>Delivery</th>
-                <th>Score</th>
-                <th>Notes</th>
-                {user?.role === "approver" && rfq.status === "QUOTED" && (
-                  <th>Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {scoredQuotations.map((q) => (
-                <tr
-                  key={q._id}
-                  style={{
-                    background:
-                      q._id === recommended?._id ? "#f0fdf4" : undefined,
-                  }}
-                >
-                  <td>
-                    <div>
-                      <p style={{ fontWeight: "500" }}>
-                        {q.vendorId?.name || "Unknown"}
+          <TableContainer>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th>Price</th>
+                  <th>Delivery</th>
+                  <th>Score</th>
+                  <th>Notes</th>
+                  {user?.role === "approver" && rfq?.status === "QUOTED" && (
+                    <th>Actions</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {scoredQuotations.map((q, index) => (
+                  <tr
+                    key={q?._id || index}
+                    style={{
+                      background:
+                        q?._id === recommended?._id ? "#f0fdf4" : undefined,
+                    }}
+                  >
+                    <td>
+                      <p
+                        style={{
+                          fontWeight: 650,
+                          color: "var(--text)",
+                          margin: 0,
+                        }}
+                      >
+                        {q?.vendorId?.name || "Unknown vendor"}
                       </p>
                       <p
-                        style={{ fontSize: "12px", color: "var(--slate-500)" }}
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--text-soft)",
+                          margin: "3px 0 0",
+                        }}
                       >
-                        {q.vendorId?.email}
+                        {q?.vendorId?.email || "No email"}
                       </p>
-                    </div>
-                  </td>
-                  <td>
-                    <p
-                      style={{
-                        fontWeight: "600",
-                        color:
-                          q.price === lowestPrice
-                            ? "var(--success)"
-                            : "var(--slate-700)",
-                      }}
-                    >
-                      Rs. {q.price.toLocaleString()}
-                    </p>
-                    {q.price === lowestPrice && (
-                      <span
-                        style={{ fontSize: "11px", color: "var(--success)" }}
+                    </td>
+                    <td>
+                      <p
+                        style={{
+                          fontWeight: 650,
+                          color:
+                            q?.price === lowestPrice
+                              ? "var(--success)"
+                              : "var(--text)",
+                          margin: 0,
+                        }}
                       >
-                        Lowest
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <p>{q.deliveryDays} days</p>
-                    {q.deliveryDays === fastestDelivery && (
-                      <span
-                        style={{ fontSize: "11px", color: "var(--success)" }}
-                      >
-                        Fastest
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
+                        {formatCurrency(q?.price)}
+                      </p>
+                      {q?.price === lowestPrice && (
+                        <span className="chip">Lowest</span>
+                      )}
+                    </td>
+                    <td>
+                      <p style={{ margin: 0 }}>
+                        {q?.deliveryDays ? `${q.deliveryDays} days` : "—"}
+                      </p>
+                      {q?.deliveryDays === fastestDelivery && (
+                        <span className="chip">Fastest</span>
+                      )}
+                    </td>
+                    <td>
                       <div
                         style={{
-                          width: "40px",
-                          height: "6px",
-                          background: "var(--slate-200)",
-                          borderRadius: "3px",
-                          overflow: "hidden",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
                         }}
                       >
                         <div
                           style={{
-                            width: `${q.score}%`,
-                            height: "100%",
-                            background:
-                              q.score >= 80
-                                ? "var(--success)"
-                                : q.score >= 50
-                                  ? "var(--warning)"
-                                  : "var(--slate-400)",
-                            borderRadius: "3px",
+                            width: "48px",
+                            height: "6px",
+                            background: "var(--border)",
+                            borderRadius: "999px",
+                            overflow: "hidden",
                           }}
-                        />
-                      </div>
-                      <span style={{ fontSize: "13px", fontWeight: "500" }}>
-                        {q.score}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    <p
-                      style={{
-                        fontSize: "13px",
-                        color: "var(--slate-500)",
-                        maxWidth: "200px",
-                      }}
-                    >
-                      {q.notes || "—"}
-                    </p>
-                  </td>
-                  {user?.role === "approver" && rfq.status === "QUOTED" && (
-                    <td>
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          onClick={() => handleApprove(q._id, "APPROVED")}
-                          disabled={actionLoading === q._id}
-                          className="btn btn-success"
-                          style={{ padding: "6px 12px", fontSize: "12px" }}
                         >
-                          {actionLoading === q._id ? "..." : "Approve"}
-                        </button>
-                        <button
-                          onClick={() => handleApprove(q._id, "REJECTED")}
-                          disabled={actionLoading === q._id}
-                          className="btn btn-danger"
-                          style={{ padding: "6px 12px", fontSize: "12px" }}
-                        >
-                          Reject
-                        </button>
+                          <div
+                            style={{
+                              width: `${q.score}%`,
+                              height: "100%",
+                              background:
+                                q.score >= 80
+                                  ? "var(--success)"
+                                  : q.score >= 50
+                                    ? "var(--warning)"
+                                    : "var(--text-soft)",
+                            }}
+                          />
+                        </div>
+                        <span style={{ fontSize: "13px", fontWeight: 650 }}>
+                          {q.score}
+                        </span>
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <td style={{ maxWidth: "240px" }}>{q?.notes || "—"}</td>
+                    {user?.role === "approver" && rfq?.status === "QUOTED" && (
+                      <td>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            onClick={() => handleApprove(q?._id, "APPROVED")}
+                            disabled={actionLoading === q?._id}
+                            className="btn btn-success btn-sm"
+                          >
+                            {actionLoading === q?._id ? "Working…" : "Approve"}
+                          </button>
+                          <button
+                            onClick={() => handleApprove(q?._id, "REJECTED")}
+                            disabled={actionLoading === q?._id}
+                            className="btn btn-danger btn-sm"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableContainer>
         )}
       </div>
     </div>

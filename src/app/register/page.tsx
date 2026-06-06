@@ -67,7 +67,7 @@ export default function RegisterPage() {
         },
       });
       login(data.user, data.accessToken, data.refreshToken);
-      router.push("/dashboard");
+      router.push("/dashboard").catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

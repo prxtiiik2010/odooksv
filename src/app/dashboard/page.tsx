@@ -4,163 +4,161 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  TableContainer,
+  formatCurrency,
+} from "@/components/ui";
+
+interface DashboardStats {
+  totalRFQs?: number;
+  pendingApprovals?: number;
+  approvedQuotations?: number;
+  recentPOs?: Array<{
+    id?: string;
+    _id?: string;
+    poNumber?: string;
+    totalAmount?: number;
+    vendor?: { name?: string };
+    vendorId?: { name?: string };
+    rfq?: { title?: string };
+    rfqId?: { title?: string };
+  }>;
+}
 
 export default function DashboardPage() {
   const { user, accessToken } = useAuth();
-  const [stats, setStats] = useState<{
-    totalRFQs: number;
-    pendingApprovals: number;
-    approvedQuotations: number;
-    recentPOs: Array<{
-      _id: string;
-      poNumber: string;
-      totalAmount: number;
-      vendorId: { name: string };
-      rfqId: { title: string };
-    }>;
-  } | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (accessToken) {
-      api("/dashboard", { accessToken }).then(setStats).catch(console.error);
-    }
+    const loadDashboard = async () => {
+      if (!accessToken) return;
+
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await api("/dashboard", { accessToken });
+        setStats(data ?? {});
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Unable to load dashboard data",
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDashboard();
   }, [accessToken]);
 
-  if (!stats) {
-    return <p style={{ color: "var(--slate-500)" }}>Loading...</p>;
-  }
+  const firstName = user?.name?.split(" ")?.[0] || "there";
+  const recentPOs = stats?.recentPOs ?? [];
 
   return (
     <div>
-      <div style={{ marginBottom: "32px" }}>
-        <h1
-          style={{
-            fontSize: "24px",
-            fontWeight: "600",
-            color: "var(--slate-800)",
-          }}
-        >
-          Welcome back, {user?.name?.split(" ")[0]}
-        </h1>
-        <p
-          style={{
-            fontSize: "14px",
-            color: "var(--slate-500)",
-            marginTop: "4px",
-          }}
-        >
-          Here's what's happening with your procurement flow
-        </p>
-      </div>
+      <PageHeader
+        title={`Good to see you, ${firstName}`}
+        description="A concise view of RFQs, approvals, and recent purchase orders."
+      />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: "16px",
-          marginBottom: "32px",
-        }}
-      >
-        <div className="card">
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--slate-500)",
-              marginBottom: "8px",
-            }}
-          >
-            Total RFQs
-          </p>
-          <p
-            style={{
-              fontSize: "32px",
-              fontWeight: "700",
-              color: "var(--slate-800)",
-            }}
-          >
-            {stats.totalRFQs}
-          </p>
-        </div>
-        <div className="card">
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--slate-500)",
-              marginBottom: "8px",
-            }}
-          >
-            Pending Approval
-          </p>
-          <p
-            style={{
-              fontSize: "32px",
-              fontWeight: "700",
-              color: "var(--warning)",
-            }}
-          >
-            {stats.pendingApprovals}
-          </p>
-        </div>
-        <div className="card">
-          <p
-            style={{
-              fontSize: "13px",
-              color: "var(--slate-500)",
-              marginBottom: "8px",
-            }}
-          >
-            Approved
-          </p>
-          <p
-            style={{
-              fontSize: "32px",
-              fontWeight: "700",
-              color: "var(--success)",
-            }}
-          >
-            {stats.approvedQuotations}
-          </p>
-        </div>
-      </div>
+      {error ? (
+        <ErrorState title="Dashboard unavailable" message={error} />
+      ) : loading ? (
+        <LoadingState message="Loading dashboard…" />
+      ) : (
+        <>
+          <section className="stat-grid">
+            <div className="card stat-card">
+              <p className="stat-label">Total RFQs</p>
+              <p className="stat-value">{stats?.totalRFQs ?? 0}</p>
+            </div>
+            <div className="card stat-card">
+              <p className="stat-label">Pending approval</p>
+              <p className="stat-value">{stats?.pendingApprovals ?? 0}</p>
+            </div>
+            <div className="card stat-card">
+              <p className="stat-label">Approved quotes</p>
+              <p className="stat-value">{stats?.approvedQuotations ?? 0}</p>
+            </div>
+          </section>
 
-      <div className="card">
-        <h2 className="card-header">Recent Purchase Orders</h2>
-        {stats.recentPOs.length === 0 ? (
-          <p style={{ color: "var(--slate-500)", fontSize: "14px" }}>
-            No purchase orders yet
-          </p>
-        ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>PO Number</th>
-                <th>Vendor</th>
-                <th>Item</th>
-                <th>Amount</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.recentPOs.map((po) => (
-                <tr key={po._id}>
-                  <td style={{ fontWeight: "500" }}>{po.poNumber}</td>
-                  <td>{po.vendorId?.name || "Unknown"}</td>
-                  <td>{po.rfqId?.title || "Unknown"}</td>
-                  <td>Rs. {po.totalAmount.toLocaleString()}</td>
-                  <td>
-                    <Link
-                      href={`/po?id=${po._id}`}
-                      style={{ color: "var(--accent)", fontSize: "13px" }}
-                    >
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <section className="card">
+            <div className="page-header" style={{ marginBottom: 18 }}>
+              <div>
+                <h2 className="card-header" style={{ marginBottom: 4 }}>
+                  Recent purchase orders
+                </h2>
+                <p className="page-description" style={{ margin: 0 }}>
+                  Latest orders generated after quotation approval.
+                </p>
+              </div>
+              <Link href="/po" className="btn btn-secondary">
+                View all
+              </Link>
+            </div>
+
+            {recentPOs.length === 0 ? (
+              <EmptyState
+                title="No purchase orders yet"
+                description="Approved quotations will appear here as generated purchase orders."
+              />
+            ) : (
+              <TableContainer>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>PO number</th>
+                      <th>Vendor</th>
+                      <th>Item</th>
+                      <th>Amount</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentPOs.map((po, index) => {
+                      const poId = po?.id || po?._id;
+                      return (
+                        <tr key={poId || po?.poNumber || index}>
+                          <td style={{ fontWeight: 700, color: "var(--text)" }}>
+                            {po?.poNumber || "—"}
+                          </td>
+                          <td>
+                            {po?.vendor?.name ||
+                              po?.vendorId?.name ||
+                              "Unknown vendor"}
+                          </td>
+                          <td>
+                            {po?.rfq?.title ||
+                              po?.rfqId?.title ||
+                              "Untitled RFQ"}
+                          </td>
+                          <td style={{ color: "var(--text)", fontWeight: 650 }}>
+                            {formatCurrency(po?.totalAmount)}
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <Link
+                              href={`/po${poId ? `?id=${poId}` : ""}`}
+                              style={{ color: "var(--text)", fontWeight: 650 }}
+                            >
+                              Open
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </TableContainer>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

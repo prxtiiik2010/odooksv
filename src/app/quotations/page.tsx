@@ -4,25 +4,36 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  TableContainer,
+  formatCurrency,
+  formatDate,
+} from "@/components/ui";
 
 interface Quotation {
-  _id: string;
-  rfqId: { _id: string; title: string };
-  vendorId: { name: string };
-  price: number;
-  deliveryDays: number;
-  notes: string;
-  status: string;
-  createdAt: string;
+  id?: string;
+  rfqId?: string;
+  rfq?: { _id?: string; title?: string };
+  vendorId?: string;
+  vendor?: { name?: string };
+  price?: number;
+  deliveryDays?: number;
+  notes?: string;
+  status?: string;
+  createdAt?: string;
 }
 
 interface RFQ {
-  _id: string;
-  title: string;
-  description: string;
-  quantity: number;
-  status: string;
-  assignedVendors: string[];
+  _id?: string;
+  title?: string;
+  description?: string;
+  quantity?: number;
+  status?: string;
+  assignedVendors?: string[];
 }
 
 export default function QuotationsPage() {
@@ -31,6 +42,7 @@ export default function QuotationsPage() {
   const [rfqs, setRfqs] = useState<RFQ[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const [form, setForm] = useState({
     rfqId: "",
     price: "",
@@ -38,21 +50,36 @@ export default function QuotationsPage() {
     notes: "",
   });
   const [error, setError] = useState("");
+  const [listError, setListError] = useState("");
 
   useEffect(() => {
-    if (accessToken) {
-      api("/quotations", { accessToken })
-        .then(setQuotations)
-        .catch(console.error);
+    const loadQuotations = async () => {
+      if (!accessToken) return;
 
-      if (user?.role === "vendor") {
-        api("/rfq", { accessToken })
-          .then((data: RFQ[]) =>
-            setRfqs(data.filter((r) => r.status === "OPEN")),
-          )
-          .catch(console.error);
+      setListLoading(true);
+      setListError("");
+
+      try {
+        const quotationData = await api("/quotations", { accessToken });
+        setQuotations(Array.isArray(quotationData) ? quotationData : []);
+
+        if (user?.role === "vendor") {
+          const rfqData = await api("/rfq", { accessToken });
+          const availableRfqs = Array.isArray(rfqData)
+            ? rfqData.filter((r: RFQ) => r?.status === "OPEN")
+            : [];
+          setRfqs(availableRfqs);
+        }
+      } catch (err) {
+        setListError(
+          err instanceof Error ? err.message : "Unable to load quotations",
+        );
+      } finally {
+        setListLoading(false);
       }
-    }
+    };
+
+    loadQuotations();
   }, [accessToken, user?.role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,7 +100,7 @@ export default function QuotationsPage() {
       setQuotations([newQuotation, ...quotations]);
       setShowForm(false);
       setForm({ rfqId: "", price: "", deliveryDays: "", notes: "" });
-      setRfqs((prev) => prev.filter((r) => r._id !== form.rfqId));
+      setRfqs((prev) => prev.filter((r) => r?._id !== form.rfqId));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to submit quotation",
@@ -83,66 +110,42 @@ export default function QuotationsPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
     const classes: Record<string, string> = {
       SUBMITTED: "badge-open",
       SHORTLISTED: "badge-quoted",
       APPROVED: "badge-approved",
       REJECTED: "badge-rejected",
     };
-    return classes[status] || "badge-open";
+    return classes[status || ""] || "badge-open";
   };
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "24px",
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              fontSize: "24px",
-              fontWeight: "600",
-              color: "var(--slate-800)",
-            }}
-          >
-            Quotations
-          </h1>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "var(--slate-500)",
-              marginTop: "4px",
-            }}
-          >
-            {user?.role === "vendor"
-              ? "Submit quotes for assigned RFQs"
-              : "Review and compare vendor quotations"}
-          </p>
-        </div>
-        {user?.role === "vendor" && rfqs.length > 0 && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="btn btn-primary"
-          >
-            {showForm ? "Cancel" : "+ Submit Quote"}
-          </button>
-        )}
-      </div>
+      <PageHeader
+        title="Quotations"
+        description={
+          user?.role === "vendor"
+            ? "Submit quotes for RFQs assigned to your vendor profile."
+            : "Review, compare, and approve vendor quotations."
+        }
+        action={
+          user?.role === "vendor" && rfqs.length > 0 ? (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="btn btn-primary"
+            >
+              {showForm ? "Cancel" : "+ Submit Quote"}
+            </button>
+          ) : undefined
+        }
+      />
 
       {showForm && user?.role === "vendor" && (
         <div className="card" style={{ marginBottom: "24px" }}>
-          <h2 className="card-header">Submit Quotation</h2>
+          <h2 className="card-header">Submit quotation</h2>
           {error && <div className="alert alert-error">{error}</div>}
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-          >
+          <form onSubmit={handleSubmit} className="form-stack">
             <div>
               <label className="label">Select RFQ</label>
               <select
@@ -152,20 +155,17 @@ export default function QuotationsPage() {
                 required
               >
                 <option value="">Choose an RFQ...</option>
-                {rfqs.map((rfq) => (
-                  <option key={rfq._id} value={rfq._id}>
-                    {rfq.title}
+                {rfqs.map((rfq, index) => (
+                  <option
+                    key={rfq?._id || rfq?.title || index}
+                    value={rfq?._id || ""}
+                  >
+                    {rfq?.title || "Untitled RFQ"}
                   </option>
                 ))}
               </select>
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "16px",
-              }}
-            >
+            <div className="form-grid">
               <div>
                 <label className="label">Price (Rs.)</label>
                 <input
@@ -210,59 +210,68 @@ export default function QuotationsPage() {
               disabled={loading}
               style={{ alignSelf: "flex-start" }}
             >
-              {loading ? "Submitting..." : "Submit Quote"}
+              {loading ? "Submitting…" : "Submit Quote"}
             </button>
           </form>
         </div>
       )}
 
       <div className="card">
-        {quotations.length === 0 ? (
-          <p style={{ color: "var(--slate-500)", fontSize: "14px" }}>
-            No quotations yet
-          </p>
+        {listError ? (
+          <ErrorState title="Could not load quotations" message={listError} />
+        ) : listLoading ? (
+          <LoadingState message="Loading quotations…" />
+        ) : quotations.length === 0 ? (
+          <EmptyState
+            title="No quotations yet"
+            description="Submitted vendor quotes will appear here for review and comparison."
+          />
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>RFQ</th>
-                {user?.role !== "vendor" && <th>Vendor</th>}
-                <th>Price</th>
-                <th>Delivery</th>
-                <th>Status</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quotations.map((q) => (
-                <tr key={q._id}>
-                  <td>
-                    <Link
-                      href={`/rfq/${q.rfqId?._id}`}
-                      style={{ color: "var(--accent)", fontWeight: "500" }}
-                    >
-                      {q.rfqId?.title || "Unknown"}
-                    </Link>
-                  </td>
-                  {user?.role !== "vendor" && (
-                    <td>{q.vendorId?.name || "Unknown"}</td>
-                  )}
-                  <td style={{ fontWeight: "500" }}>
-                    Rs. {q.price.toLocaleString()}
-                  </td>
-                  <td>{q.deliveryDays} days</td>
-                  <td>
-                    <span className={`badge ${getStatusBadge(q.status)}`}>
-                      {q.status}
-                    </span>
-                  </td>
-                  <td style={{ color: "var(--slate-500)" }}>
-                    {new Date(q.createdAt).toLocaleDateString()}
-                  </td>
+          <TableContainer>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>RFQ</th>
+                  {user?.role !== "vendor" && <th>Vendor</th>}
+                  <th>Price</th>
+                  <th>Delivery</th>
+                  <th>Status</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {quotations.map((q, index) => (
+                  <tr key={q?.id || index}>
+                    <td>
+                      {q?.rfq?._id ? (
+                        <Link
+                          href={`/rfq/${q.rfq?._id}`}
+                          style={{ color: "var(--accent)", fontWeight: 650 }}
+                        >
+                          {q?.rfq?.title || "Untitled RFQ"}
+                        </Link>
+                      ) : (
+                        q?.rfq?.title || "Unknown RFQ"
+                      )}
+                    </td>
+                    {user?.role !== "vendor" && (
+                      <td>{q?.vendor?.name || "Unknown vendor"}</td>
+                    )}
+                    <td style={{ fontWeight: 650, color: "var(--text)" }}>
+                      {formatCurrency(q?.price)}
+                    </td>
+                    <td>{q?.deliveryDays ? `${q.deliveryDays} days` : "—"}</td>
+                    <td>
+                      <span className={`badge ${getStatusBadge(q?.status)}`}>
+                        {q?.status || "SUBMITTED"}
+                      </span>
+                    </td>
+                    <td>{formatDate(q?.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableContainer>
         )}
       </div>
     </div>

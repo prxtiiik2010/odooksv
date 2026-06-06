@@ -1,13 +1,11 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
+import { successResponse, authResponse, serverErrorResponse } from "@/lib/auth";
 import {
   verifyPasswordResetToken,
   consumePasswordResetToken,
-  successResponse,
-  authResponse,
-  serverErrorResponse,
   auditLog,
-} from "@/lib/auth";
+} from "@/lib/auth-server";
 
 export async function POST(request: Request) {
   try {
