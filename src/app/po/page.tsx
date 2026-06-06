@@ -15,25 +15,25 @@ interface PO {
 }
 
 export default function POPage() {
-  const { token } = useAuth();
+  const { accessToken } = useAuth();
   const [pos, setPos] = useState<PO[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (token) {
-      api("/po", { token })
+    if (accessToken) {
+      api("/po", { accessToken })
         .then(setPos)
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [token]);
+  }, [accessToken]);
 
   const handleDownload = async (poId: string, poNumber: string) => {
     try {
       const API_URL =
         process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
       const response = await fetch(`${API_URL}/po/${poId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       const blob = await response.blob();

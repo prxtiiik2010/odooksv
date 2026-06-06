@@ -10,10 +10,14 @@ async function seed() {
   await prisma.quotation.deleteMany();
   await prisma.rFQVendor.deleteMany();
   await prisma.rFQ.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.passwordResetToken.deleteMany();
+  await prisma.auditLog.deleteMany();
+  await prisma.rateLimitEntry.deleteMany();
   await prisma.user.deleteMany();
   await prisma.vendor.deleteMany();
 
-  const hashedPassword = await bcrypt.hash("password123", 10);
+  const hashedPassword = await bcrypt.hash("Password123!", 10);
 
   const vendor1 = await prisma.vendor.create({
     data: {
@@ -100,12 +104,12 @@ async function seed() {
   });
 
   console.log("Seed data created successfully");
-  console.log("\nDemo accounts:");
+  console.log("\nDemo accounts (all use Password123!):");
   console.log("----------------");
-  console.log("Procurement Officer: rajesh@company.com / password123");
-  console.log("Approver: priya@company.com / password123");
-  console.log("Vendor: amit@sharmasteel.com / password123");
-  console.log("Admin: admin@company.com / password123");
+  console.log("Procurement Officer: rajesh@company.com");
+  console.log("Approver: priya@company.com");
+  console.log("Vendor: amit@sharmasteel.com");
+  console.log("Admin: admin@company.com");
 
   await prisma.$disconnect();
 }

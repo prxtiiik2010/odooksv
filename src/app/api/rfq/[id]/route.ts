@@ -6,7 +6,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = getAuthUser(request);
+  const auth = await getAuthUser(request);
   if (!auth)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

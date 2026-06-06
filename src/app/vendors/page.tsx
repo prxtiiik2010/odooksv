@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/store';
-import { api } from '@/lib/api';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/store";
+import { api } from "@/lib/api";
 
 interface Vendor {
   _id: string;
@@ -14,37 +14,40 @@ interface Vendor {
 }
 
 export default function VendorsPage() {
-  const { token } = useAuth();
+  const { accessToken } = useAuth();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', gst: '', category: '' });
-  const [error, setError] = useState('');
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    gst: "",
+    category: "",
+  });
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (token) {
-      api('/vendors', { token })
-        .then(setVendors)
-        .catch(console.error);
+    if (accessToken) {
+      api("/vendors", { accessToken }).then(setVendors).catch(console.error);
     }
-  }, [token]);
+  }, [accessToken]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const newVendor = await api('/vendors', {
-        method: 'POST',
+      const newVendor = await api("/vendors", {
+        method: "POST",
         body: form,
-        token,
+        accessToken,
       });
       setVendors([newVendor, ...vendors]);
       setShowForm(false);
-      setForm({ name: '', email: '', gst: '', category: '' });
+      setForm({ name: "", email: "", gst: "", category: "" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add vendor');
+      setError(err instanceof Error ? err.message : "Failed to add vendor");
     } finally {
       setLoading(false);
     }
@@ -52,23 +55,54 @@ export default function VendorsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "24px",
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '600', color: 'var(--slate-800)' }}>Vendors</h1>
-          <p style={{ fontSize: '14px', color: 'var(--slate-500)', marginTop: '4px' }}>
+          <h1
+            style={{
+              fontSize: "24px",
+              fontWeight: "600",
+              color: "var(--slate-800)",
+            }}
+          >
+            Vendors
+          </h1>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "var(--slate-500)",
+              marginTop: "4px",
+            }}
+          >
             Manage your vendor directory
           </p>
         </div>
-        <button onClick={() => setShowForm(!showForm)} className="btn btn-primary">
-          {showForm ? 'Cancel' : '+ Add Vendor'}
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="btn btn-primary"
+        >
+          {showForm ? "Cancel" : "+ Add Vendor"}
         </button>
       </div>
 
       {showForm && (
-        <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="card" style={{ marginBottom: "24px" }}>
           <h2 className="card-header">Add New Vendor</h2>
           {error && <div className="alert alert-error">{error}</div>}
-          <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "16px",
+            }}
+          >
             <div>
               <label className="label">Company Name</label>
               <input
@@ -113,9 +147,13 @@ export default function VendorsPage() {
                 required
               />
             </div>
-            <div style={{ gridColumn: '1 / -1', marginTop: '8px' }}>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                {loading ? 'Adding...' : 'Add Vendor'}
+            <div style={{ gridColumn: "1 / -1", marginTop: "8px" }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+              >
+                {loading ? "Adding..." : "Add Vendor"}
               </button>
             </div>
           </form>
@@ -124,7 +162,9 @@ export default function VendorsPage() {
 
       <div className="card">
         {vendors.length === 0 ? (
-          <p style={{ color: 'var(--slate-500)', fontSize: '14px' }}>No vendors added yet</p>
+          <p style={{ color: "var(--slate-500)", fontSize: "14px" }}>
+            No vendors added yet
+          </p>
         ) : (
           <table className="table">
             <thead>
@@ -138,17 +178,21 @@ export default function VendorsPage() {
             <tbody>
               {vendors.map((vendor) => (
                 <tr key={vendor._id}>
-                  <td style={{ fontWeight: '500' }}>{vendor.name}</td>
+                  <td style={{ fontWeight: "500" }}>{vendor.name}</td>
                   <td>{vendor.email}</td>
-                  <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{vendor.gst}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: "13px" }}>
+                    {vendor.gst}
+                  </td>
                   <td>
-                    <span style={{
-                      background: 'var(--slate-100)',
-                      padding: '4px 10px',
-                      borderRadius: '4px',
-                      fontSize: '12px',
-                      color: 'var(--slate-600)'
-                    }}>
+                    <span
+                      style={{
+                        background: "var(--slate-100)",
+                        padding: "4px 10px",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        color: "var(--slate-600)",
+                      }}
+                    >
                       {vendor.category}
                     </span>
                   </td>

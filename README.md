@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ProcureFlow
 
 End-to-end procurement management system for hackathons.
@@ -90,3 +91,7 @@ The quotation comparison table includes a weighted scoring system:
 - **Delivery weight**: 40%
 
 The vendor with the highest combined score is highlighted as the recommendation.
+=======
+# odooksv
+odoo x ksv hackathon 2026
+>>>>>>> b251501f7d052f0a557a6123843b624a8bbac45a

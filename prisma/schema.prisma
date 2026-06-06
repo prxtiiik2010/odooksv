@@ -16,7 +16,11 @@ model User {
   vendor    Vendor?  @relation(fields: [vendorId], references: [id])
   createdAt DateTime @default(now())
 
-  rfqs       RFQ[]
+  rfqs                RFQ[]
+  emailVerified       Boolean  @default(false)
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogs           AuditLog[]
 }
 
 enum Role {
@@ -108,4 +112,51 @@ model PurchaseOrder {
   rfq        RFQ       @relation(fields: [rfqId], references: [id])
   quotation  Quotation @relation(fields: [quotationId], references: [id])
   vendor     Vendor    @relation(fields: [vendorId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  details   String   @default("")
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model RateLimitEntry {
+  id        String   @id @default(cuid())
+  key       String
+  action    String
+  expiresAt DateTime
+
+  @@index([key, action])
 }

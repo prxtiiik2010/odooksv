@@ -6,7 +6,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const auth = getAuthUser(request);
+  const auth = await getAuthUser(request);
   if (!auth || auth.role !== "approver") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

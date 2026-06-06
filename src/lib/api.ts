@@ -1,20 +1,29 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface RequestOptions {
   method?: string;
   body?: unknown;
-  token?: string | null;
+  accessToken?: string | null;
 }
 
 export async function api(endpoint: string, options: RequestOptions = {}) {
-  const { method = 'GET', body, token } = options;
+  const { method = "GET", body, accessToken } = options;
 
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 
+  // Resolve token from localStorage if not explicitly provided
+  const token =
+    accessToken ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("auth")
+        ? JSON.parse(localStorage.getItem("auth") || "{}").accessToken
+        : null
+      : null);
+
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {
@@ -24,8 +33,10 @@ export async function api(endpoint: string, options: RequestOptions = {}) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Request failed');
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Request failed" }));
+    throw new Error(error.error || "Request failed");
   }
 
   return response.json();
